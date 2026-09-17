@@ -72,7 +72,8 @@ const csv = "﻿" + toCSV(out, OUT_COLS);
 if (CHECK) {
   if (!fs.existsSync(OUTPUT)) { console.error("CHECK dështoi: mungon " + OUTPUT); process.exit(1); }
   const existing = fs.readFileSync(OUTPUT, "utf8");
-  if (existing === csv) { console.log("✓ CHECK: output-i përputhet me " + OUTPUT); process.exit(0); }
+  const norm = function (s) { return s.replace(/\r\n/g, "\n"); }; // tolerant ndaj CRLF/LF
+  if (norm(existing) === norm(csv)) { console.log("✓ CHECK: output-i përputhet me " + OUTPUT); process.exit(0); }
   else { console.error("✗ CHECK: output-i NUK përputhet me skedarin e ruajtur (rregullat kanë ndryshuar?)"); process.exit(1); }
 }
 

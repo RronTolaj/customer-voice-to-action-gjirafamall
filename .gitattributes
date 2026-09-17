@@ -1,0 +1,8 @@
+# Fund rreshtash konsistent (LF) në të gjitha platformat — që `node classify.js --check`
+# të riprodhohet njësoj në Windows/macOS/Linux.
+* text=auto eol=lf
+
+*.csv  text eol=lf
+*.js   text eol=lf
+*.html text eol=lf
+*.md   text eol=lf
