@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice to Action</title>
+<meta name="description" content="Mjet transparent që kategorizon feedback-un e klientëve të GjirafaMall me rregulla fjalë-kyçe dhe e krahason me etiketat manuale.">
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --ink:#1a1d24; --muted:#5b6472;
+    --line:#e3e6ea; --brand:#0f7a5a; --brand-ink:#0b5c44;
+    --pos:#0f7a5a; --neg:#c0392b; --warn:#b8860b; --chip:#eef1f4;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+    --radius:12px;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#14171c; --panel:#1c2027; --ink:#e8eaed; --muted:#9aa4b2;
+      --line:#2a2f38; --brand:#3ecf9a; --brand-ink:#7fe3c0; --chip:#242a33;
+      --shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14171c; --panel:#1c2027; --ink:#e8eaed; --muted:#9aa4b2;
+    --line:#2a2f38; --brand:#3ecf9a; --brand-ink:#7fe3c0; --chip:#242a33;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; font-size:15px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:24px 16px 80px}
+  header.top{margin-bottom:8px}
+  h1{font-size:26px; margin:0 0 4px; letter-spacing:-.02em}
+  .sub{color:var(--muted); margin:0 0 20px; max-width:70ch}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin:16px 0}
+  h2{font-size:15px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 14px; font-weight:600}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px}
+  .card{background:var(--chip); border-radius:10px; padding:14px 16px}
+  .card .n{font-size:28px; font-weight:700; letter-spacing:-.02em}
+  .card .l{color:var(--muted); font-size:13px; margin-top:2px}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .bar{height:8px; border-radius:4px; background:var(--brand); display:inline-block; vertical-align:middle; margin-left:8px}
+  .chip{display:inline-block; padding:2px 8px; border-radius:999px; background:var(--chip); font-size:12px; white-space:nowrap}
+  .chip.ok{color:var(--pos)} .chip.bad{color:var(--neg)} .chip.mid{color:var(--warn)}
+  .agree{color:var(--pos); font-weight:600} .disagree{color:var(--neg); font-weight:600}
+  .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:16px 0}
+  button,.btn{
+    background:var(--brand); color:#fff; border:0; border-radius:8px; padding:9px 16px;
+    font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  button.ghost{background:transparent; color:var(--brand); border:1px solid var(--line)}
+  button:hover{filter:brightness(1.05)}
+  .muted{color:var(--muted)}
+  .txt{max-width:52ch}
+  details{margin-top:8px} summary{cursor:pointer; color:var(--brand); font-weight:600}
+  code{background:var(--chip); padding:1px 5px; border-radius:5px; font-size:13px}
+  .rule-cat{margin:10px 0; padding:10px 12px; background:var(--chip); border-radius:8px}
+  .rule-cat b{color:var(--brand-ink)}
+  .kw{display:inline-block; margin:2px 3px; padding:1px 6px; background:var(--panel); border:1px solid var(--line); border-radius:5px; font-size:12px}
+  .scroll{overflow-x:auto}
+  .filterbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px}
+  input[type=search],select{padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); font-size:14px; font-family:inherit}
+  .note{font-size:13px; color:var(--muted); border-left:3px solid var(--line); padding:6px 12px; margin:10px 0}
+  .flip{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Customer Voice to Action — GjirafaMall</h1>
+    <p class="sub">Mjet i vogël, transparent që lexon feedback-un e mbledhur të klientëve, e kategorizon automatikisht me rregulla fjalë-kyçe të dukshme, dhe e krahason me kategorizimin manual (ground truth). Pa varësi, pa API, pa "AI kuti e zezë" — hapet me dopio-klik në çdo browser.</p>
+  </header>
+
+  <div class="controls">
+    <button onclick="exportCSV()">⬇ Shkarko CSV të kategorizuar</button>
+    <label class="btn ghost" style="display:inline-block">
+      ⬆ Ngarko CSV tjetër
+      <input type="file" accept=".csv" onchange="loadFile(event)" style="display:none">
+    </label>
+    <button class="ghost" onclick="toggleTheme()">◐ Ndrysho temën</button>
+    <span class="muted flip" id="src">burimi: dataset i inkorporuar (60 komente)</span>
+  </div>
+
+  <section class="panel">
+    <h2>Përmbledhje</h2>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Shpërndarja sipas kategorisë — Manual vs. Automatik</h2>
+    <div class="scroll">
+      <table id="distTable">
+        <thead><tr>
+          <th>Kategoria</th>
+          <th class="num">Manual</th><th class="num">%</th>
+          <th class="num">Auto</th><th class="num">%</th>
+          <th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note">"Manual" = etiketat e verifikuara nga njeriu (referencë/ground truth). "Auto" = parashikimi eksperimental i mjetit. Numrat mund të ndryshojnë sepse mjeti gabon në disa raste — kjo është pikërisht ajo që tregon validimi më poshtë.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Sa saktë përputhet automatiku me manualin</h2>
+    <div class="cards" id="valcards"></div>
+    <details open>
+      <summary id="msSummary">Shfaq mospërputhjet</summary>
+      <div class="scroll">
+        <table id="mismatchTable">
+          <thead><tr><th>Autori</th><th>Teksti</th><th>Manual</th><th>Auto</th><th>Confidence</th><th>Arsyeja (fjalët)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <h2>Tema sipas burimit</h2>
+    <div class="scroll"><table id="sourceTable">
+      <thead><tr><th>Burimi</th><th class="num">Komente</th><th>Kategoria mbizotëruese (auto)</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p class="note">Vetëm 60 komente — kjo tregon sinjale, jo prova statistikore. Nuk nxjerrim përfundime shkakësore nga një kampion kaq i vogël.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Të gjitha komentet e kategorizuara</h2>
+    <div class="filterbar">
+      <input type="search" id="q" placeholder="Kërko në tekst…" oninput="renderAll()">
+      <select id="fcat" onchange="renderAll()"><option value="">Të gjitha kategoritë (auto)</option></select>
+      <select id="fmatch" onchange="renderAll()">
+        <option value="">Përputhje: të gjitha</option>
+        <option value="1">Vetëm përputhjet</option>
+        <option value="0">Vetëm mospërputhjet</option>
+      </select>
+    </div>
+    <div class="scroll"><table id="allTable">
+      <thead><tr><th>Data</th><th>Burimi</th><th>Teksti</th><th>Manual</th><th>Auto</th><th>Conf.</th><th>✓/✗</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <h2>Si punon — rregullat (të plota, transparente)</h2>
+    <p class="muted" style="margin-top:0">Çdo koment normalizohet (shkronja të vogla, hiqen theksat: ç→c, ë→e). Për secilën kategori mblidhet një <b>rezultat</b> = shuma e peshave të fjalëve-kyçe që gjenden në tekst. Fjalët e përgjithshme (p.sh. "app", "posta") kanë peshë të vogël; sinjalet specifike (p.sh. "crash", "vones") peshë të lartë. Fiton kategoria me rezultatin më të lartë. Në barazim, prioriteti u jepet problemeve operacionale (që mjeti të <i>flag-ojë për shqyrtim</i> në vend që të supozojë "pozitiv"). Rezultat 0 → <code>Tjeter/Paqarte</code>.</p>
+    <div id="rules"></div>
+    <p class="note">Kufizim i njohur: rregullat nuk kuptojnë kontekst, sarkazëm apo mohim (p.sh. "s'është i mirë"). Prandaj mjeti është një <b>ndihmës triazhi</b> që përshpejton punën, jo zëvendësim i gjykimit njerëzor. Etiketat manuale mbeten burimi i së vërtetës.</p>
+  </section>
+
+  <footer class="muted" style="font-size:13px; text-align:center; margin-top:24px">
+    Ndërtuar për use-case-in "Customer Voice to Action" · Rron Tolaj · Rregullat & logjika: shih më lart dhe në README.md
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   DATASET I INKORPORUAR (snapshot i data/raw/gjirafamall_komente.csv)
+   Burimi i së vërtetës mbetet CSV-ja në data/raw/. Ky snapshot lejon
+   që mjeti të hapet me dopio-klik pa server. Përdor "Ngarko CSV" për
+   të rifreskuar me të dhëna të reja.
+   ============================================================ */
+const DATASET = [{"Data":"2025-11-14","Burimi":"Google Play","Autori":"Narent Ismaili","Teksti":"Bad experience, ordered a product, it was described as it contains cable within the product (25w samsung charger) and it came to me a month later (even though they told me that it will arrive in max 2 weeks) containing only charger (without cable). Description still exists as it contains a cable. Not recommend at all. They don't care about customers at all!","Vleresimi":"1","Kategoria":"Cilesia/Autenticiteti i produktit"},{"Data":"2026-07-18","Burimi":"Google Play","Autori":"Nick Shala","Teksti":"easy to use l.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-01-24","Burimi":"Google Play","Autori":"Red 7","Teksti":"Super si web","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2026-09-01","Burimi":"Google Play","Autori":"Asret Ragipi","Teksti":"Amazoni Kosoves (Me i mire se Amazoni)","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2026-08-29","Burimi":"Google Play","Autori":"Alfred Marku","Teksti":"patjetër Gjirafa duhet te kete 1 sy e jo 2 sic e ka krijuar Krijuesi ?","Vleresimi":"1","Kategoria":"Tjeter/Paqarte"},{"Data":"2026-06-14","Burimi":"Google Play","Autori":"Drilon Kryeziu","Teksti":"katastrof. ne cdo prekje po dridh edhe nuk po ki mundesi me ia ndal.","Vleresimi":"1","Kategoria":"App bugs/Performanca"},{"Data":"2026-06-16","Burimi":"Google Play","Autori":"G M","Teksti":"versioni i ri shume lag","Vleresimi":"2","Kategoria":"App bugs/Performanca"},{"Data":"2026-04-02","Burimi":"Google Play","Autori":"Drin Cocaj","Teksti":"Porosia vonohet dhe askush nuk jep pergjeresi per kete. Jo profesjonal","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"2026-03-11","Burimi":"Google Play","Autori":"Agron Musa","Teksti":"Duheni me bo update Appin se spo i qet fotot e produkteve ne App","Vleresimi":"1","Kategoria":"App bugs/Performanca"},{"Data":"2025-12-20","Burimi":"Google Play","Autori":"Ogren Hajdari","Teksti":"pash kon tkeni bojeni app edhe gjirafa 50🙏🙏🙏🙏🙏","Vleresimi":"5","Kategoria":"Sugjerime"},{"Data":"2025-12-10","Burimi":"Google Play","Autori":"Ivona Krncheva","Teksti":"0 trajnost na parfemi,0 customer care","Vleresimi":"1","Kategoria":"Cilesia/Autenticiteti i produktit"},{"Data":"2025-10-29","Burimi":"Google Play","Autori":"Rinon Sopi","Teksti":"Dy jave vones ne porosi, premtohet posta falas, te jepet mesazhi minus posta tek porosia, ne total nuk zbatohet","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"2025-09-06","Burimi":"Google Play","Autori":"Laurent Maxhuni","Teksti":"Është shumë aplikacion i mirë, edhe aplikacion që të duhet nëse e përdor gjirafa mallin shpesh. Nëse për çfarëdo arsyeje është tu punu ngadalë në telefonin tënd atëherë faji është tek telefoni yt e jo faji I aplikacionit. Shpresoj që tju ket ndihmuar. E vlersimi im për të është 5 yje se gjithçka shkon si duhet. Posta me kohë, produktet e mira, list e madhe e sendeve të ndryshme, etj.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-06-14","Burimi":"Google Play","Autori":"Samir Samir","Teksti":"shum program i ngadalsum ose permisone gjendjen osee...","Vleresimi":"1","Kategoria":"App bugs/Performanca"},{"Data":"2025-10-08","Burimi":"Google Play","Autori":"Orges Hasani","Teksti":"ESHTE SHUM APP I MIR MUNESH ME PROSIT GJITHQKAA KA SENDE SHUM TMIRA KUALITETI SHUM I MIR SIDOMOS I PARFUMAV","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-06-16","Burimi":"Google Play","Autori":"Isen Haziri","Teksti":"posta shum fiks produkte origjinale ky app eshet xix","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-10-02","Burimi":"Google Play","Autori":"Vigan Hajdari","Teksti":"Perfekt","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-10-14","Burimi":"Google Play","Autori":"Linda","Teksti":"Aplikacion qe nuk punon. T'qojne emails promocionale \"s'ki app, s'ki zbritje\" e kur don me perdore appin, nuk fuksionon send. Me menzi e kom bo ni porosi, edhe ata ma kan anulu. Prej customer care nuk pergjigjet kerkush. Humbje kohe. 1 yll edhe uninstall.","Vleresimi":"1","Kategoria":"App bugs/Performanca"},{"Data":"2025-10-08","Burimi":"Google Play","Autori":"Leonat Berbatovci","Teksti":"super app","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2026-03-22","Burimi":"Facebook","Autori":"Remzi Begolli","Teksti":"Vendi me i sigurt për produkte Origjinale","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-12-01","Burimi":"Facebook","Autori":"Milaim Ramadani","Teksti":"Dy her kam bere porosi dy her eshte anuluar nuk Jeni aspak serioz...me vjen keq po kjo eshte e verteta...","Vleresimi":"Nuk rekomandon","Kategoria":"Dergesa/Vonesa"},{"Data":"2022-12-15","Burimi":"Facebook","Autori":"Shëndeti Lekurës","Teksti":"#gift #bestservice Thanks (pcavolli)","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2022-01-13","Burimi":"Facebook","Autori":"Mentor Vuçitërna","Teksti":"Eksperience jo e mire, ne faqe shkruan se produkti arrin brenda 2 dite dhe nuk eshte ashtu, fatkeqesisht gjithcka qe merr jane arsyetime dhe kerkim falje per vonesen. Ne fund e anulova porosine.","Vleresimi":"Nuk rekomandon","Kategoria":"Dergesa/Vonesa"},{"Data":"2021-08-26","Burimi":"Facebook","Autori":"Fatos Nishori","Teksti":"Dyqani i përgjegjshëm ndaj klientit, ofron një sërë produkte online dhe mundësi të pagesës online. Shërbimi me klient perfekt, ofrimi i ndihmës dhe informacionit në kohë të shpejt.","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2021-05-07","Burimi":"Facebook","Autori":"Driton Tifeku","Teksti":"Të saktë, të shpejtë, të përgjegjshëm! Shumë i kënaqur me Gjirafën.","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2020-12-30","Burimi":"Facebook","Autori":"Gresa Pirana Luma","Teksti":"Sherbimin e kane pase shume te mire deri para ca muajsh. Sot e kane zero. Kam bere porosi qe 14 dite, kane thene e dergojme per 2 dite, u bene 14 dite. Ne chat ne faqe pergjegjen sta kthejne me ore. Shume zhgenjyse per mua si blerese e rregullt. Tmerr!!","Vleresimi":"Nuk rekomandon","Kategoria":"Dergesa/Vonesa"},{"Data":"2020-05-21","Burimi":"Facebook","Autori":"Ismail A Leqmaili","Teksti":"@Gjirafa50 #gjirafamall ekipa e njejt 60% fitimi produktet fallc apo edhe kta qaq lladika po ju duken origjinal. @Mergim Cahani","Vleresimi":"Nuk rekomandon","Kategoria":"Cilesia/Autenticiteti i produktit"},{"Data":"2020-04-08","Burimi":"Facebook","Autori":"Yll Morina","Teksti":"Koha e dergeses. Web-faqja (nuk dihet kurr qa ka nstok qka jo)","Vleresimi":"Nuk rekomandon","Kategoria":"Dergesa/Vonesa"},{"Data":"2019-01-26","Burimi":"Facebook","Autori":"Kujtim Imeri","Teksti":"Keni shumë produkte të mira kualitative faliminderit nga ju.","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2018-11-23","Burimi":"Facebook","Autori":"Genc Krasniqi","Teksti":"Gjirafa mall. the best place to shop. 5 stars.","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2018-09-14","Burimi":"Facebook","Autori":"Visar Dobroshi","Teksti":"Reliable, fast and the largest online market place! Just a click away!","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2018-07-05","Burimi":"Facebook","Autori":"Agim Ahmeti","Teksti":"5 stars","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2018-05-21","Burimi":"Facebook","Autori":"Metka Rama","Teksti":"5 stars","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2018-04-05","Burimi":"Facebook","Autori":"Kreshnik Bakija","Teksti":"Mos hezitoni shoke e shoqe po realizoni blerje","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"(pa datë të dukshme)","Burimi":"Facebook","Autori":"Blerim Muhaxhiri","Teksti":"5 stars","Vleresimi":"Rekomandon","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-10-04","Burimi":"App Store","Autori":"ErezaS","Teksti":"Prej aplikacioneve me te thjeshta edhe te kuptueshme deri tash!!! I shpejte, asnje problem me pages, edhe e mire se po te njofton per oferta. Aplikacion qe tash mu ka bo rutine cdo dite!","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-10-27","Burimi":"App Store","Autori":"Fit-a","Teksti":"Për javë të tëra më lodhën me premtime boshe dhe zero zgjidhje. Në fund, më propozuan të më dërgonin postierin me 3 euro – tallje e pastër me klientin. Asnjë respekt, asnjë përgjegjësi, asnjë profesionalizëm. Në 2025, të trajtosh klientin kështu është turp. Mos humbni kohë me ta – kërkoni diku tjetër.","Vleresimi":"1","Kategoria":"Sherbimi ndaj klientit"},{"Data":"2025-12-02","Burimi":"App Store (AL)","Autori":"kdotandhismommavan","Teksti":"App funksionon shume mire me shop-in dhe eshte shume responsive. E vetmja gje qe do me pelqente eshte sygjerimi i produkteve tek Homepage te ndryshoje - te ishte me interactive dhe te highlight produkte interesante. Por nese kerkon, gjen. Best online shop in Albania.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-10-06","Burimi":"App Store (AL)","Autori":"Fitaa99","Teksti":"Lehte me u perdore dhe shume praktik.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-11-05","Burimi":"App Store (AL)","Autori":"(emoji si username)","Teksti":"Nuk me ka rastisur te porosis ne ndonje aplikacion kaq jokorrekt sa ky! Sherbimi ndaj klientit i tmerrshem! Porosia nuk arrin asnjeher ne datat e dhena, ato data shtyhen per kur ata deshirojn dhe ne email-at e tyre ka veq arsyetime kot per keto shtyerje. Shume e zhgenjyer!!!","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"2025-12-12","Burimi":"App Store (AL)","Autori":"Feast2787","Teksti":"Shum keq me porosit vij e shum me vones dhe korieri nuk ta dergon tek data qe e njofton edhe pse thot ne rregull do tq coj une nsr. Jam shum i zhgenjyer ndaj sherbimit te klientit","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"2025-10-22","Burimi":"App Store (CH)","Autori":"404Heroo","Teksti":"Sinqerisht shum i zhgenjyer me Gjirafa Mall. Porosia e pare u vonu tmerrsisht, e thash ndoshta ndodh, por edhe e dyta doli katastrof. Kur kom thirr me pyet per porosine, stafi as nuk mujsha me ndegju qysh duhet prej zhurmes ne background – tu qesh, tu bertit, si me qen kafe jo call center. Porosia u vonu 2 javë plus edhe 1 javë tjeter pa asnje paralajmrim. Nuk e rekomandoj hic, s'vlen me humb kohen e nervat me ta.","Vleresimi":"1","Kategoria":"Sherbimi ndaj klientit"},{"Data":"2026-09-04","Burimi":"App Store (DE)","Autori":"einfach geld verdinenn","Teksti":"shum app i mir","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"2025-11-05","Burimi":"App Store (DE)","Autori":"jonkabashi","Teksti":"SHERBIM I TMERRSHEM!!! Si fillim me dhane nje date per ardhjen e porosis, pastaj kjo date u shtye 3-4 here. U treguan shume jo-korrekt duke dhene vetem fjale boshe. Shume i zhgenjyer!!!","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"2025-10-13","Burimi":"App Store (IT)","Autori":"exheka1","Teksti":"Per 2 jave per porosine dhe prap nuk vjen","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"2025-10-08","Burimi":"App Store (GB)","Autori":"Baba i it'se","Teksti":"Minuti i pare i promovimit dhe booom app crash, a si keni prite me shum se 20 vete me u kyqe a??","Vleresimi":"1","Kategoria":"App bugs/Performanca"},{"Data":"2026-04-04","Burimi":"App Store (MK)","Autori":"Ljiljana66","Teksti":"Every search it gets stuck on I Phone","Vleresimi":"1","Kategoria":"App bugs/Performanca"},{"Data":"~2026-05","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Omer Imeri","Teksti":"A proffesional company. Their customer support was really helpful, and handled the issues seriously. Even when there was a mistake with the product, they showed responsibility and took care of the situation properly. I appreciate their professionalism, communication, and customer care. Overall, a trustworthy service.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2026-03","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Bardhyl Bunjaku","Teksti":"Always happy whenever making purchases. Have been buying from them for the longest of times and never disappointed. Had to RMA several times with no issue at all. Products are always of the expected quality and a wide range of products to choose from which is unmatched in Kosovo. Customer service is top-tier - one of their strongest suits as well.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2026-03","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Berat Gashi","Teksti":"I've had amazing experience with Gjirafa. They are extremely professional and always go the extra mile for their customers. What truly stands out is how they treat loyal clients by offering generous extra discounts and making sure we feel valued. Highly recommended for both their service and customer care!","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2025-09","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Kreshnik Bllaca","Teksti":"Definitely, the best place to feel like home. Their support team is truly on another LVL. Super fast, friendly, and always ready to help. I had a lot of issues (which of course are from my side), and they solved it in no time. One of the best customer service experiences I've had online.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2025-10","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"M W","Teksti":"Honestly best service ever. They took calls, emails and everything to accommodate my preferences. Lovely company. I definitely recommend!","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2025-09","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Adelina Krasniqi","Teksti":"7 years of excellent experience with Gjirafa! Professional staff, always correct and polite towards customers. Timely product delivery and tailored to the client's requests. In one word, the most successful website in the country when it comes to online sales. Highly recommend it!","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2025-09","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Granit Biba","Teksti":"I've made multiple orders in Gjirafa and never had an issue with them. Their customer support is amazing, also their technical support is good too! Once I had to return a MacBook which had 7 days left in warranty, they refunded the whole payment. I've ordered a lot of tech and perfumes so every product was 10/10!","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2025-09","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Blerona Maqastena","Teksti":"I am a loyal costumer of Gjirafa Mall. And they rewarded my loyalty with an extra discount of my latest purchase. Great company, high quality products and a very kind and responsible customer service support!","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2025-09","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"jon dedinca","Teksti":"Excellent online shopping experience! Fast delivery, a wide variety of products, and amazing customer service. Highly recommended for anyone shopping in Kosovo.","Vleresimi":"5","Kategoria":"Pozitiv i pergjithshem"},{"Data":"~2026-09-10","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Sebastian","Teksti":"The staff is very polite and professional. However, some of the products advertised online have misleading prices and discounts. Overall, the service and experience are good.","Vleresimi":"5","Kategoria":"Cmime & Zbritje"},{"Data":"~2026-08-20","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Arbrim Rashiti","Teksti":"Late delivery of products, damaged products. Repeatedly unimproved, horrible experience.","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"~2024-09","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Genci","Teksti":"Extremely disappointed with delivery date. Product was advertised for the arrival in 48 hour, so I ordered it. It happened that it didn't came. Delay of delivery caused a change of plan to send it as a gift, which was a main purpose for ordering it. Very very disappointing.","Vleresimi":"1","Kategoria":"Dergesa/Vonesa"},{"Data":"~2025-11","Burimi":"Google Maps (Gjirafa Inc - profil korporativ)","Autori":"Maxy WasHere","Teksti":"I've had a really bad experience with Gjirafa. My first order was a table that came with no manual or instructions, and when I contacted support, they were no help at all. They didn't bother to follow up or give me any real answers. My second order has been even worse. It was supposed to arrive three weeks ago, and it still hasn't shown up. Every time I contact support, they send the same copy-paste message saying they'll 'try their best' to get it to me soon, but nothing ever changes. Honestly, it's been a horrible experience. There's no real communication, no effort to fix problems, and it feels like they just don't care once they get your money. I'm really disappointed and won't be ordering from them again.","Vleresimi":"1","Kategoria":"Sherbimi ndaj klientit"}];
+
+/* ============================================================
+   RREGULLAT: fjalë-kyçe të peshuara (identike me classifier.js që
+   përdor CLI-ja Node). Këtu janë inline sepse browser-i bllokon
+   ngarkimin e skripteve motër kur skedari hapet me file:// (dopio-klik).
+   Për të shmangur drift: `node classify.js --check` verifikon që
+   output-i i CLI-së përputhet me CSV-në e ruajtur.
+   Pesha: 2 = i fortë/specifik · 1 = i moderuar · 0.5 = i përgjithshëm.
+   ============================================================ */
+const RULES = {
+  "Dergesa/Vonesa": [
+    ["vones",2],["vonu",2],["vonoh",2],["vonon",2],
+    ["derges",1],["dergon",1],["dergoj",1],["korier",2],["posta",0.5],
+    ["porosi",1],["porosit",1],["nuk vjen",2],["prap nuk vjen",2],
+    ["nuk arrin",2],["arrin brenda",1],["shtye",2],["shtyerje",2],
+    ["14 dite",2],["dy jave",2],["2 jave",2],["3 jave",1],["tri jave",1],
+    ["koha e dergeses",2],["delivery",2],["late delivery",2],["shipping",1],
+    ["arrive",1],["arrival",2],["delay",2],["didn't came",2],["hasn't shown",2],
+    ["anuluar",1],["anulova",1],["anulu",1]
+  ],
+  "App bugs/Performanca": [
+    ["crash",2],["bug",2],["lag",2],["ngec",2],["dridh",2],["nuk punon",2],
+    ["nuk fuksionon",2],["s'funksionon",2],["stuck",2],["gets stuck",2],
+    ["glitch",2],["ngadal",2],["ngadalsum",2],["program i ngadal",2],
+    ["update",1],["version",1],["versioni",1],["spo i qet fotot",2],
+    ["fotot e produkteve",1],["uninstall",1],["aplikacion qe nuk",2],["iphone",0.5]
+  ],
+  "Sherbimi ndaj klientit": [
+    ["customer care",2],["customer support",1],["customer service",1],
+    ["support team",1],["sherbim",1],["sherbimi",1],["sherbimin",1],
+    ["staf",2],["call center",2],["nuk pergjigjet",2],["pergjeresi",1],
+    ["fjale boshe",2],["premtime boshe",2],["no communication",2],
+    ["contacted support",2],["no help",2],["arsyetime",1],["kerkim falje",1],
+    ["zgjidhje",1],["no effort",2]
+  ],
+  "Cilesia/Autenticiteti i produktit": [
+    ["fallc",2],["origjinal",1],["origjinale",1],["trajnost",2],["damaged",2],
+    ["without cable",2],["containing only",2],["no manual",2],["quality",0.5],
+    ["kualitative",1],["fake",2],["nuk eshte ashtu",1]
+  ],
+  "Cmime & Zbritje": [
+    ["cmim",2],["zbritje",1],["oferta",1],["popust",2],["discount",2],
+    ["misleading prices",2],["kurse",1],["price",1],["extra discount",1]
+  ],
+  "Sugjerime": [
+    ["duheni me bo",2],["duhet me",1],["bojeni",2],["sygjerim",2],["sugjerim",2],
+    ["do me pelqente",2],["propozoj",1],["suggest",2],["te ishte me",2],
+    ["do te ishte",1],["ndryshoje",1]
+  ],
+  "Pozitiv i pergjithshem": [
+    ["perfekt",2],["super",1],["the best",2],["best",1],["excellent",2],
+    ["amazing",2],["i mir",1],["e mir",1],["i mire",1],["e mire",1],["tmira",1],
+    ["recommend",2],["rekomand",2],["faliminderit",1],["kenaqur",2],
+    ["professional",1],["proffesional",1],["trustworthy",2],["i shpejt",1],
+    ["te shpejt",1],["easy",1],["praktik",1],["lovely",2],["great",1],["xix",2],
+    ["reliable",2],["10/10",2],["5 stars",2],["sigurt",1],["highly recommend",2],
+    ["happy",1],["fast delivery",2],["mos hezitoni",1],["thanks",1],
+    ["me i mire",2],["shum i mir",1],["shume mire",1]
+  ]
+};
+const PRIORITY = ["Dergesa/Vonesa","App bugs/Performanca","Sherbimi ndaj klientit",
+  "Cilesia/Autenticiteti i produktit","Cmime & Zbritje","Sugjerime","Pozitiv i pergjithshem"];
+const CATS = [...PRIORITY,"Tjeter/Paqarte"];
+function normalize(s){
+  return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+}
+function classify(text){
+  const t = normalize(text);
+  const scores = {}; const hits = {};
+  for(const cat in RULES){
+    let s = 0; const matched = [];
+    for(const [kw,w] of RULES[cat]){
+      if(w>0 && t.includes(normalize(kw))){ s += w; matched.push(kw); }
+    }
+    scores[cat] = s; hits[cat] = matched;
+  }
+  let max = 0;
+  for(const c in scores) if(scores[c]>max) max = scores[c];
+  if(max === 0) return {category:"Tjeter/Paqarte", confidence:"E ulet", reason:"asnjë fjalë-kyçe", scores};
+  const top = PRIORITY.filter(c => scores[c] === max);
+  const cat = top[0];
+  const sorted = Object.values(scores).sort((a,b)=>b-a);
+  const margin = max - (sorted[1]||0);
+  let conf = "E mesme";
+  if(max>=2 && margin>=2) conf = "E larte";
+  else if(max<1 || (top.length>1)) conf = "E ulet";
+  return {category:cat, confidence:conf, reason:hits[cat].join(", ")||"—", scores};
+}
+
+/* ---------- Gjendja & përpunimi ---------- */
+let ROWS = [];
+function process(data){
+  ROWS = data.map(r=>{
+    const res = classify(r.Teksti);
+    return {...r,
+      Kategoria_Manuale: r.Kategoria || "",
+      Kategoria_Auto: res.category,
+      Confidence: res.confidence,
+      Reason: res.reason,
+      Perputhet: (r.Kategoria && r.Kategoria===res.category) ? "1":"0"
+    };
+  });
+}
+
+/* ---------- Render ---------- */
+function pct(n,d){ return d? (100*n/d).toFixed(0):"0"; }
+
+function renderSummary(){
+  const total = ROWS.length;
+  const withManual = ROWS.filter(r=>r.Kategoria_Manuale).length;
+  const agree = ROWS.filter(r=>r.Perputhet==="1").length;
+  const acc = pct(agree, withManual);
+  const cats = new Set(ROWS.map(r=>r.Kategoria_Auto)).size;
+  document.getElementById('cards').innerHTML = `
+    <div class="card"><div class="n">${total}</div><div class="l">Komente gjithsej</div></div>
+    <div class="card"><div class="n">${cats}</div><div class="l">Kategori (auto)</div></div>
+    <div class="card"><div class="n">${acc}%</div><div class="l">Përputhje me manualin</div></div>
+    <div class="card"><div class="n">${withManual}</div><div class="l">Me etiketë manuale</div></div>`;
+}
+
+function renderDist(){
+  const tb = document.querySelector('#distTable tbody'); tb.innerHTML='';
+  const total = ROWS.length;
+  const manCount={}, autoCount={};
+  CATS.forEach(c=>{manCount[c]=0; autoCount[c]=0;});
+  ROWS.forEach(r=>{ if(r.Kategoria_Manuale) manCount[r.Kategoria_Manuale]=(manCount[r.Kategoria_Manuale]||0)+1; autoCount[r.Kategoria_Auto]++; });
+  const maxAuto = Math.max(...Object.values(autoCount));
+  CATS.forEach(c=>{
+    if(!manCount[c] && !autoCount[c]) return;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${c}</td>
+      <td class="num">${manCount[c]||0}</td><td class="num muted">${pct(manCount[c]||0,total)}%</td>
+      <td class="num">${autoCount[c]||0}</td><td class="num muted">${pct(autoCount[c]||0,total)}%</td>
+      <td><span class="bar" style="width:${(autoCount[c]/maxAuto*160)||0}px"></span></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderValidation(){
+  const withManual = ROWS.filter(r=>r.Kategoria_Manuale);
+  const agree = withManual.filter(r=>r.Perputhet==="1").length;
+  const mism = withManual.filter(r=>r.Perputhet==="0");
+  document.getElementById('valcards').innerHTML = `
+    <div class="card"><div class="n agree">${agree}</div><div class="l">Përputhen</div></div>
+    <div class="card"><div class="n disagree">${mism.length}</div><div class="l">Nuk përputhen</div></div>
+    <div class="card"><div class="n">${pct(agree,withManual.length)}%</div><div class="l">Saktësi (agreement)</div></div>`;
+  document.getElementById('msSummary').textContent = `Shfaq mospërputhjet (${mism.length})`;
+  const tb = document.querySelector('#mismatchTable tbody'); tb.innerHTML='';
+  mism.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${esc(r.Autori)}</td><td class="txt">${esc(r.Teksti)}</td>
+      <td><span class="chip">${esc(r.Kategoria_Manuale)}</span></td>
+      <td><span class="chip bad">${esc(r.Kategoria_Auto)}</span></td>
+      <td>${r.Confidence}</td><td class="muted">${esc(r.Reason)}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderSource(){
+  const tb=document.querySelector('#sourceTable tbody'); tb.innerHTML='';
+  const bySrc={};
+  ROWS.forEach(r=>{ (bySrc[r.Burimi]=bySrc[r.Burimi]||[]).push(r); });
+  Object.keys(bySrc).sort((a,b)=>bySrc[b].length-bySrc[a].length).forEach(src=>{
+    const rows=bySrc[src]; const c={};
+    rows.forEach(r=>c[r.Kategoria_Auto]=(c[r.Kategoria_Auto]||0)+1);
+    const dom=Object.keys(c).sort((a,b)=>c[b]-c[a])[0];
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(src)}</td><td class="num">${rows.length}</td><td><span class="chip">${esc(dom)}</span> <span class="muted">(${c[dom]}/${rows.length})</span></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderAll(){
+  const q=normalize(document.getElementById('q').value);
+  const fc=document.getElementById('fcat').value;
+  const fm=document.getElementById('fmatch').value;
+  const tb=document.querySelector('#allTable tbody'); tb.innerHTML='';
+  ROWS.filter(r=>{
+    if(q && !normalize(r.Teksti).includes(q)) return false;
+    if(fc && r.Kategoria_Auto!==fc) return false;
+    if(fm && r.Perputhet!==fm) return false;
+    return true;
+  }).forEach(r=>{
+    const tr=document.createElement('tr');
+    const mk = r.Perputhet==="1" ? '<span class="agree">✓</span>' : '<span class="disagree">✗</span>';
+    tr.innerHTML=`<td class="muted" style="white-space:nowrap">${esc(r.Data)}</td>
+      <td class="muted">${esc(shortSrc(r.Burimi))}</td>
+      <td class="txt">${esc(r.Teksti)}</td>
+      <td><span class="chip">${esc(r.Kategoria_Manuale||'—')}</span></td>
+      <td><span class="chip">${esc(r.Kategoria_Auto)}</span></td>
+      <td>${r.Confidence}</td><td>${mk}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderRules(){
+  const box=document.getElementById('rules'); box.innerHTML='';
+  for(const cat in RULES){
+    const d=document.createElement('div'); d.className='rule-cat';
+    d.innerHTML = `<b>${cat}</b><br>` + RULES[cat].filter(k=>k[1]>0)
+      .map(([kw,w])=>`<span class="kw">${esc(kw)} <span class="muted">·${w}</span></span>`).join('');
+    box.appendChild(d);
+  }
+  const d=document.createElement('div'); d.className='rule-cat';
+  d.innerHTML='<b>Tjeter/Paqarte</b><br><span class="muted">caktohet kur asnjë fjalë-kyçe nuk gjendet (rezultat 0)</span>';
+  box.appendChild(d);
+}
+
+function fillCatFilter(){
+  const sel=document.getElementById('fcat');
+  CATS.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});
+}
+
+/* ---------- Utilat ---------- */
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function shortSrc(s){return s.replace(' (Gjirafa Inc - profil korporativ)','').replace('profil korporativ','');}
+
+function toCSV(rows){
+  const cols=["Data","Burimi","Autori","Teksti","Vleresimi","Kategoria_Manuale","Kategoria_Auto","Confidence","Reason","Perputhet"];
+  const q=v=>{v=(v==null?'':String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  return cols.join(',')+'\n'+rows.map(r=>cols.map(c=>q(r[c])).join(',')).join('\n');
+}
+function exportCSV(){
+  const blob=new Blob(['﻿'+toCSV(ROWS)],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='gjirafamall_komente_kategorizuara.csv';
+  a.click();
+}
+
+/* CSV parser i thjeshtë (mbështet fusha me thonjëza, presje, newline) */
+function parseCSV(text){
+  const rows=[]; let i=0,f='',row=[],inQ=false;
+  text=text.replace(/^﻿/,'');
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else inQ=false; }
+      else f+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){ row.push(f); f=''; }
+      else if(c==='\n'){ row.push(f); rows.push(row); row=[]; f=''; }
+      else if(c==='\r'){}
+      else f+=c;
+    }
+    i++;
+  }
+  if(f.length||row.length){ row.push(f); rows.push(row); }
+  const head=rows.shift().map(h=>h.trim());
+  return rows.filter(r=>r.length>1||r[0]).map(r=>{const o={};head.forEach((h,idx)=>o[h]=r[idx]!==undefined?r[idx]:'');return o;});
+}
+function loadFile(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const data=parseCSV(e.target.result);
+      if(!data.length || !('Teksti' in data[0])){ alert('CSV duhet të ketë kolonën "Teksti".'); return; }
+      process(data); renderEverything();
+      document.getElementById('src').textContent='burimi: '+file.name+' ('+data.length+' komente)';
+    }catch(err){ alert('Gabim gjatë leximit: '+err.message); }
+  };
+  rd.readAsText(file);
+}
+
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark'?'light':(cur==='light'?'dark':'dark');
+  document.documentElement.setAttribute('data-theme',next);
+  try{localStorage.setItem('theme',next);}catch(e){}
+}
+(function(){try{const t=localStorage.getItem('theme'); if(t) document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+
+function renderEverything(){ renderSummary(); renderDist(); renderValidation(); renderSource(); renderAll(); }
+
+/* Init */
+fillCatFilter(); renderRules();
+process(DATASET); renderEverything();
+
+/* API për verifikim të jashtëm (p.sh. gjatë testimit) */
+window.__voice = {classify, process:()=>{process(DATASET);return ROWS;}, get rows(){return ROWS;}, toCSV:()=>toCSV(ROWS)};
+</script>
+</body>
+</html>
