@@ -136,6 +136,8 @@ përshpejtojë triazhin, pastaj njeriu verifikon rastet kufitare.
 ├── index.html                  # demo interaktiv (self-contained, dopio-klik)
 ├── classifier.js               # motori i rregullave (burimi i vetëm i logjikës)
 ├── classify.js                 # CLI Node: raw → processed + raport + --check
+├── product_memo.md             # memo 1-faqe për Head of Product
+├── product_memo.pdf            # memo, versioni PDF (për email)
 ├── data/
 │   ├── raw/                     # dataset-i autoritar (etiketa manuale = ground truth)
 │   │   └── gjirafamall_komente.csv
@@ -143,6 +145,7 @@ përshpejtojë triazhin, pastaj njeriu verifikon rastet kufitare.
 │       └── gjirafamall_komente_kategorizuara.csv
 ├── AI_LOG.md                   # përdorimi i AI, verifikimet, gabimet e kapura
 ├── README.md
+├── .gitattributes
 └── .gitignore
 ```
 
