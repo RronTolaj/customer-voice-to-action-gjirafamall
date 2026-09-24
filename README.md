@@ -138,6 +138,7 @@ përshpejtojë triazhin, pastaj njeriu verifikon rastet kufitare.
 ├── classify.js                 # CLI Node: raw → processed + raport + --check
 ├── product_memo.md             # memo 1-faqe për Head of Product
 ├── product_memo.pdf            # memo, versioni PDF (për email)
+├── prezantimi_gjirafamall.pdf  # prezantimi (9 slajde, PDF)
 ├── data/
 │   ├── raw/                     # dataset-i autoritar (etiketa manuale = ground truth)
 │   │   └── gjirafamall_komente.csv

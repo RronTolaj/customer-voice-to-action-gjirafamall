@@ -5,7 +5,7 @@
 **Data:** 22 shtator 2026
 **Objekti:** 3 problemet kryesore nga 60 komente reale klientësh + veprimet e propozuara
 
-**Përmbledhje:** Nga 60 komente publike (Google Play, App Store, Facebook, Google Maps), ~45%
+**Përmbledhje:** Nga 60 komente publike (Google Play, App Store, Facebook, Google Maps), 53%
 janë pozitive — por ankesat përqendrohen te **tri tema**, të lidhura nga një hall i përbashkët:
 **premtimet që nuk mbahen** (afati i dërgesës, "përgjigje brenda 30 sekondave", stabiliteti i app-it).
 Këto tri janë ku fitohet ose humbet besimi.
